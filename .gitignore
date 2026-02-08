@@ -1,1 +1,8 @@
 /target
+/LBM_rust/target
+/LBM_rust/.ipynb_checkpoints
+*.bin
+*.midi
+*.mid
+*.json
+
