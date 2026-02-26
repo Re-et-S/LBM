@@ -510,7 +510,21 @@ pub fn events_to_chunks(events: &[UnifiedEvent], ppq: u16) -> Vec<PianoRollChunk
 #+END_SRC
 
 * Byte Pair Encoding
-In order to have good byte pair encoding, we need to snap the float duration to discrete grid. Instead of picking heuristics points. The better way is to implement a k-means clustering algorithm
+In order to have good byte pair encoding, we need to snap the float duration to discrete grid. Instead of picking heuristics points. The better way is to implement a k-means clustering algorithm.
+
+The output of the BPE process will be saved to two binary files optimized for C++ loading: ~vocab.bin~ and ~tokens.bin~.
+
+** ~vocab.bin~ Structure (Little Endian):
+1.  ~base_vocab_size~ (u32, 4 bytes): Number of base tokens (36-byte chunks).
+2.  ~num_merges~ (u32, 4 bytes): Number of merge rules.
+3.  **Base Tokens**: ~base_vocab_size~ blocks of 36 bytes each (the raw token data).
+4.  **Merge Rules**: ~num_merges~ pairs of u32 (8 bytes per pair: ~left_token_id~, ~right_token_id~).
+    - The new token ID for the $i$-th merge rule is implicitly $base\_vocab\_size + i$.
+    - This allows for O(1) decoding using a simple array lookup.
+
+** ~tokens.bin~ Structure:
+- A raw sequence of ~u32~ values representing the compressed token IDs.
+
 #+BEGIN_SRC rustic :tangle ./LBM_rust/src/bpe.rs
 use std::fs::File;
 use std::io::{self, Read, BufReader, BufWriter, Write};
