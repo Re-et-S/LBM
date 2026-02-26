@@ -510,10 +510,24 @@ pub fn events_to_chunks(events: &[UnifiedEvent], ppq: u16) -> Vec<PianoRollChunk
 #+END_SRC
 
 * Byte Pair Encoding
-In order to have good byte pair encoding, we need to snap the float duration to discrete grid. Instead of picking heuristics points. The better way is to implement a k-means clustering algorithm
+In order to have good byte pair encoding, we need to snap the float duration to discrete grid. Instead of picking heuristics points. The better way is to implement a k-means clustering algorithm.
+
+The output of the BPE process will be saved to two binary files optimized for C++ loading: ~vocab.bin~ and ~tokens.bin~.
+
+** ~vocab.bin~ Structure (Little Endian):
+1.  ~base_vocab_size~ (u32, 4 bytes): Number of base tokens (36-byte chunks).
+2.  ~num_merges~ (u32, 4 bytes): Number of merge rules.
+3.  **Base Tokens**: ~base_vocab_size~ blocks of 36 bytes each (the raw token data).
+4.  **Merge Rules**: ~num_merges~ pairs of u32 (8 bytes per pair: ~left_token_id~, ~right_token_id~).
+    - The new token ID for the $i$-th merge rule is implicitly $base\_vocab\_size + i$.
+    - This allows for O(1) decoding using a simple array lookup.
+
+** ~tokens.bin~ Structure:
+- A raw sequence of ~u32~ values representing the compressed token IDs.
+
 #+BEGIN_SRC rustic :tangle ./LBM_rust/src/bpe.rs
 use std::fs::File;
-use std::io::{self, Read, BufReader};
+use std::io::{self, Read, BufReader, BufWriter, Write};
 use std::path::Path;
 use rayon::prelude::*;
 use rustc_hash::{FxHashSet, FxHashMap};
@@ -1036,6 +1050,45 @@ pub fn generate_sequence(
     }
     output
 }
+
+pub fn save_vocab_to_bin(
+    vocab: &Vec<[u8; CHUNK_SIZE]>,
+    merge_rules: &Vec<(u32, u32, u32)>,
+    path: &str
+) -> io::Result<()> {
+    let mut file = BufWriter::new(File::create(path)?);
+
+    let base_vocab_size = vocab.len() as u32;
+    let num_merges = merge_rules.len() as u32;
+
+    // Header
+    file.write_all(&base_vocab_size.to_le_bytes())?;
+    file.write_all(&num_merges.to_le_bytes())?;
+
+    // Base Tokens
+    for token in vocab {
+        file.write_all(token)?;
+    }
+
+    // Merge Rules
+    for &(_, left, right) in merge_rules {
+        file.write_all(&left.to_le_bytes())?;
+        file.write_all(&right.to_le_bytes())?;
+    }
+
+    Ok(())
+}
+
+pub fn save_tokens_to_bin(
+    tokens: &[u32],
+    path: &str
+) -> io::Result<()> {
+    let mut file = BufWriter::new(File::create(path)?);
+    for &token in tokens {
+        file.write_all(&token.to_le_bytes())?;
+    }
+    Ok(())
+}
 #+END_SRC
 
 * Main Entry Point
@@ -1048,7 +1101,7 @@ mod midi;
 use midi::{MidiFile, events_to_chunks};
 
 mod bpe;
-use bpe::{run_clustering_pipeline, tokenize_data, run_bpe, generate_sequence, decode_sequence};
+use bpe::{run_clustering_pipeline, tokenize_data, run_bpe, generate_sequence, decode_sequence, save_vocab_to_bin, save_tokens_to_bin};
 
 use walkdir::WalkDir;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -1146,6 +1199,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     pb.finish_with_message("Done!");
+    bin_writer.flush()?;
     let index_file = File::create(output_index)?;
     serde_json::to_writer_pretty(index_file, &metadata_list)?;
     
@@ -1154,6 +1208,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rawData = run_clustering_pipeline(output_bin)?;
     let (tokenized_data, vocab) = tokenize_data(&rawData);
     let (compressed_data, merge_rule) = run_bpe(tokenized_data, vocab.len());
+
+    save_vocab_to_bin(&vocab, &merge_rule, "vocab.bin")?;
+    save_tokens_to_bin(&compressed_data, "tokens.bin")?;
+    println!("Saved vocab.bin and tokens.bin");
 
     let sampled_sequence = generate_sequence(&compressed_data, 1000);
     let decoded_chunks = decode_sequence(&sampled_sequence, &vocab, &merge_rule);
