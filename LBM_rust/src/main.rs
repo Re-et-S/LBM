@@ -2,7 +2,7 @@ mod midi;
 use midi::{MidiFile, events_to_chunks};
 
 mod bpe;
-use bpe::{run_clustering_pipeline, tokenize_data, run_bpe, generate_sequence, decode_sequence};
+use bpe::{run_clustering_pipeline, tokenize_data, run_bpe, generate_sequence, decode_sequence, save_vocab_to_bin, save_tokens_to_bin};
 
 use walkdir::WalkDir;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -100,6 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     pb.finish_with_message("Done!");
+    bin_writer.flush()?;
     let index_file = File::create(output_index)?;
     serde_json::to_writer_pretty(index_file, &metadata_list)?;
     
@@ -108,6 +109,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rawData = run_clustering_pipeline(output_bin)?;
     let (tokenized_data, vocab) = tokenize_data(&rawData);
     let (compressed_data, merge_rule) = run_bpe(tokenized_data, vocab.len());
+
+    save_vocab_to_bin(&vocab, &merge_rule, "vocab.bin")?;
+    save_tokens_to_bin(&compressed_data, "tokens.bin")?;
+    println!("Saved vocab.bin and tokens.bin");
 
     let sampled_sequence = generate_sequence(&compressed_data, 1000);
     let decoded_chunks = decode_sequence(&sampled_sequence, &vocab, &merge_rule);

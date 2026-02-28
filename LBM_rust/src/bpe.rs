@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, Read, BufReader};
+use std::io::{self, Read, BufReader, BufWriter, Write};
 use std::path::Path;
 use rayon::prelude::*;
 use rustc_hash::{FxHashSet, FxHashMap};
@@ -518,4 +518,43 @@ pub fn generate_sequence(
         }
     }
     output
+}
+
+pub fn save_vocab_to_bin(
+    vocab: &Vec<[u8; CHUNK_SIZE]>,
+    merge_rules: &Vec<(u32, u32, u32)>,
+    path: &str
+) -> io::Result<()> {
+    let mut file = BufWriter::new(File::create(path)?);
+
+    let base_vocab_size = vocab.len() as u32;
+    let num_merges = merge_rules.len() as u32;
+
+    // Header
+    file.write_all(&base_vocab_size.to_le_bytes())?;
+    file.write_all(&num_merges.to_le_bytes())?;
+
+    // Base Tokens
+    for token in vocab {
+        file.write_all(token)?;
+    }
+
+    // Merge Rules
+    for &(_, left, right) in merge_rules {
+        file.write_all(&left.to_le_bytes())?;
+        file.write_all(&right.to_le_bytes())?;
+    }
+
+    Ok(())
+}
+
+pub fn save_tokens_to_bin(
+    tokens: &[u32],
+    path: &str
+) -> io::Result<()> {
+    let mut file = BufWriter::new(File::create(path)?);
+    for &token in tokens {
+        file.write_all(&token.to_le_bytes())?;
+    }
+    Ok(())
 }
