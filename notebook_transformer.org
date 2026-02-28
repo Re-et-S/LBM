@@ -1,0 +1,44 @@
+* MIDI Token Language Model Architecture
+
+** 1. Overview
+This project adapts an existing C++/CUDA LSTM and Transformer hybrid model (originally designed for multivariate continuous financial time series, such as returns and volatilities) to act as an autoregressive language model for discrete MIDI tokens. 
+
+The original continuous streams (`hidden_dim_ret` and `hidden_dim_vol`) are unified into a single text-like generation pipeline:
+1. *Input*: Sequences of 32-bit unsigned integers (`u32`) loaded from `tokens.bin`.
+2. *Embedding*: A learnable lookup table mapping each token to an `embedding_dim` dense vector.
+3. *LSTM*: A single LSTM layer operating on the embedded vectors with hidden size `hidden_dim`. 
+4. *Transformer*: A multi-head self-attention layer stacked on top of the LSTM outputs. 
+5. *Projection Head*: A linear layer projecting the Transformer outputs to `vocab_size` logits. 
+
+The objective function is shifted from a custom regression loss to a standard Cross-Entropy Loss for language modeling.
+
+** 2. Architectural Changes
+
+*** Configuration
+- `LSTMConfig` replaced dual dimensions (`hidden_dim_ret`, `hidden_dim_vol`) with a single `hidden_dim`.
+- Added `embedding_dim` and `vocab_size` attributes.
+- Simplified `OptimizerConfig` learning rates to a single scalar (`learning_rate`) for easier hyperparameter tuning.
+
+*** Data Loader
+- Removed continuous floating-point parsing logic in `dataloader.h`.
+- Implemented parsing for `tokens.bin` (which stores the dataset as a contiguous array of `u32` indices).
+- Implemented parsing for `vocab.bin` to derive the `vocab_size` dynamically.
+- Batches are created as strided, overlapping slices of the sequence array, shifting inputs by 1 to formulate autoregressive targets.
+
+*** LSTM & Transformer Model
+- The `LSTM` struct and its member variables (like `LSTMState` and `LSTMParams`) have been consolidated.
+- Added an embedding table allocation (`std::unique_ptr<CudaBuffer<float>> W_emb`) mapping `vocab_size` to `embedding_dim`.
+- The `forward` pass now receives a tensor of token indices instead of floats. An embedding lookup kernel precedes the recurrent sequence.
+- Removed custom fusion kernels that concatenated `h_ret` and `h_vol`. The Transformer directly accepts the LSTM output `h`.
+- The `backward` pass logic was updated. Gradient propagates from the projection head down through the Transformer, LSTM, and finally updates the discrete embedding table using an atomic add scatter mechanism.
+
+*** Loss Function
+- Replaced `WeightedRobustGradient`, `RobustDirectionalLoss` with `CrossEntropyLoss` and `CrossEntropyGradient`.
+- The `CrossEntropyGradient` takes raw logits, computes softmax to obtain a probability distribution, and calculates gradients by subtracting 1.0 from the target class index probability.
+
+*** Optimizer
+- Consolidated the `AdamOptimizer` initialization to register a single unified `LSTM_Weights` parameter group along with `Embedding_Weights`, `Attention_Weights`, and `Output_Weights`.
+
+** 3. Diagnostics and Inference
+- Added specific inference functionality inside the main training loop (or an evaluation function) that predicts the next token.
+- A raw probability distribution over the vocabulary is tracked to analyze the model's confidence and diversity when generating MIDI tokens.

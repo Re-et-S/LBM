@@ -3,7 +3,7 @@
 #include <cmath>
 #include <memory>
 #include "cuda_buffer.cuh"
-#include "lstm.cuh" // For access to LSTMParams
+#include "lstm.cuh"
 #include "config.cuh"
 #include <thrust/transform_reduce.h>
 #include <thrust/functional.h>
@@ -40,7 +40,7 @@ public:
     };
 
     struct ParamGroup {
-        std::string name; // name the group for easy tracking
+        std::string name; 
         float lr;
         float weight_decay;
         std::vector<Parameter> params;
@@ -50,11 +50,10 @@ private:
     int t; 
 
 public:
-    OptimizerConfig global_cfg; // Holds defaults (beta1, beta2, eps)
+    OptimizerConfig global_cfg; 
 
     AdamOptimizer(OptimizerConfig config) : global_cfg(config), t(0) {}
 
-    // 3. The API: Create a new group dynamically
     void add_param_group(const std::string& name, float lr, float weight_decay) {
         ParamGroup group;
         group.name = name;
@@ -63,19 +62,14 @@ public:
         param_groups.push_back(std::move(group));
     }
 
-    // 4. Add a parameter to the LAST added group (or by index)
     void add_parameter_to_last_group(CudaBuffer<float>* w, CudaBuffer<float>* dw) {
-        if (param_groups.empty()) {
-            // Error handling or default group creation
-            return; 
-        }
+        if (param_groups.empty()) return; 
 
         Parameter p;
         p.w = w;
         p.dw = dw;
         p.size = w->count;
         
-        // Allocate and zero-init states
         p.m = std::make_unique<CudaBuffer<float>>(p.size);
         p.v = std::make_unique<CudaBuffer<float>>(p.size);
         cudaMemset(p.m->get(), 0, p.size * sizeof(float));
@@ -84,57 +78,43 @@ public:
         param_groups.back().params.push_back(std::move(p));
     }
 
-    // Helper to register everything efficiently
     void register_model(LSTM& model) {
-        // --- GROUP 1: xLSTM Weights (Decay = 0.1) ---
-        add_param_group("xLSTM_Weights", global_cfg.lr_vol, 0.1f);
-        add_parameter_to_last_group(model.params_vol.W_x.get(), model.params_vol.W_x_grad.get());
-        add_parameter_to_last_group(model.params_vol.W_h.get(), model.params_vol.W_h_grad.get());
+        // --- GROUP 1: Embedding Weights (Decay = 0.0) ---
+        add_param_group("Embedding_Weights", global_cfg.learning_rate, 0.0f);
+        add_parameter_to_last_group(model.W_emb.get(), model.W_emb_grad.get());
 
-        // --- GROUP 2: xLSTM Biases/LN (Decay = 0.0) ---
-        add_param_group("xLSTM_Biases", global_cfg.lr_vol, 0.0f);
-        add_parameter_to_last_group(model.params_vol.b.get(), model.params_vol.b_grad.get());
-        add_parameter_to_last_group(model.ln_vol.gamma.get(), model.ln_vol.gamma_grad.get());
-        add_parameter_to_last_group(model.ln_vol.beta.get(),  model.ln_vol.beta_grad.get());
+        // --- GROUP 2: LSTM Weights (Decay = weight_decay) ---
+        add_param_group("LSTM_Weights", global_cfg.learning_rate, global_cfg.weight_decay);
+        add_parameter_to_last_group(model.params.W_x.get(), model.params.W_x_grad.get());
+        add_parameter_to_last_group(model.params.W_h.get(), model.params.W_h_grad.get());
 
-        // --- GROUP 3: Vanilla LSTM Weights (Decay = 0.01) ---
-        add_param_group("LSTM_Weights", global_cfg.lr_ret, 0.01f);
-        add_parameter_to_last_group(model.params_ret.W_x.get(), model.params_ret.W_x_grad.get());
-        add_parameter_to_last_group(model.params_ret.W_h.get(), model.params_ret.W_h_grad.get());
+        // --- GROUP 3: LSTM Biases & LN (Decay = 0.0) ---
+        add_param_group("LSTM_Biases", global_cfg.learning_rate, 0.0f);
+        add_parameter_to_last_group(model.params.b.get(), model.params.b_grad.get());
+        add_parameter_to_last_group(model.ln.gamma.get(), model.ln.gamma_grad.get());
+        add_parameter_to_last_group(model.ln.beta.get(),  model.ln.beta_grad.get());
 
-        // --- GROUP 4: Vanilla LSTM Bais (Decay = 0.0) ---
-        add_param_group("LSTM_Biases", global_cfg.lr_ret, 0.0f);
-        add_parameter_to_last_group(model.params_ret.b.get(), model.params_ret.b_grad.get());
-        add_parameter_to_last_group(model.ln_ret.gamma.get(), model.ln_ret.gamma_grad.get());
-        add_parameter_to_last_group(model.ln_ret.beta.get(),  model.ln_ret.beta_grad.get());
-
-        // --- GROUP 5: Attention Weights (Decay = 0.1) ---
-        add_param_group("Attention_Weights", global_cfg.lr_mha, 0.1f);
+        // --- GROUP 4: Attention Weights (Decay = weight_decay) ---
+        add_param_group("Attention_Weights", global_cfg.learning_rate, global_cfg.weight_decay);
         add_parameter_to_last_group(model.mha.W_q.get(), model.mha.W_q_grad.get());
         add_parameter_to_last_group(model.mha.W_k.get(), model.mha.W_k_grad.get());
         add_parameter_to_last_group(model.mha.W_v.get(), model.mha.W_v_grad.get());
         add_parameter_to_last_group(model.mha.W_o.get(), model.mha.W_o_grad.get());
-        // group projection head with attention
         add_parameter_to_last_group(model.head.W_y.get(),   model.head.W_y_grad.get());
         
-        // --- GROUP 6: Attention Biases (Decay = 0.0) ---
-        add_param_group("Attention_Biases", global_cfg.lr_mha, 0.0f);
+        // --- GROUP 5: Attention Biases & Output Projection Bias (Decay = 0.0) ---
+        add_param_group("Attention_Biases", global_cfg.learning_rate, 0.0f);
         add_parameter_to_last_group(model.ln_transformer.gamma.get(), model.ln_transformer.gamma_grad.get());
         add_parameter_to_last_group(model.ln_transformer.beta.get(), model.ln_transformer.beta_grad.get());
         add_parameter_to_last_group(model.head.b_y.get(),   model.head.b_y_grad.get());
-        
     }
 
     void step() {
         t++;
-        
-        // Global Clipping (aggregates all groups)
         clip_gradients_global(1.0f);
 
-        // Iterate over groups -> Iterate over parameters
         for (auto& group : param_groups) {
             for (auto& p : group.params) {
-                // Now we simply pass the GROUP'S specific lr and weight_decay
                 launch_adam_kernel(
                     p.size,
                     p.w->get(),
@@ -155,7 +135,6 @@ public:
     void clip_gradients_global(float max_norm) {
         float total_sum_sq = 0.0f;
 
-        // 1. Flattened loop over ALL groups
         for (const auto& group : param_groups) {
             for (const auto& p : group.params) {
                  thrust::device_ptr<float> ptr(p.dw->get());
@@ -169,7 +148,6 @@ public:
             float scale = max_norm / (global_norm + 1e-6f);
             ScaleFunctor scaler(scale);
 
-            // 2. Flattened loop to apply scale
             for (auto& group : param_groups) {
                 for (auto& p : group.params) {
                     thrust::device_ptr<float> ptr(p.dw->get());
