@@ -12,7 +12,7 @@ struct LSTMConfig {
     int head_dim = 8;       // Dimension per attention head (e.g., 8 or 32)
 
     bool use_exponential_gating = false; // Toggle for experimental exponential gating
-    int latent_dim = 0; // Dimension of latent variable z_t (for StoxLSTM)
+    int latent_dim = 0;
 
     double huber_delta = 0.5;
     double dir_penalty = 1.2;
@@ -27,10 +27,9 @@ struct OptimizerConfig {
 };
 
 struct TrainingConfig {
-    int epochs = 7000;          // Total number of training epochs
-    int log_interval = 200;     // Frequency of logging and checkpointing
+    int epochs = 500;          // Total number of training epochs
+    int log_interval = 10;     // Frequency of logging and checkpointing
     int warmup = 50;            // Number of warmup steps before LR decay logic
-    int anchor_count = 4;       // Number of anchor stocks (targets)
 
     float patience = 3;         // Patience for LR scheduler
     float decay_factor = 0.8f;  // LR decay factor

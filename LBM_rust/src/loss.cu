@@ -130,5 +130,5 @@ float compute_cross_entropy_loss_and_grad(
         thrust::plus<float>()
     );
 
-    return sum_loss * scale; // Average loss
+    return sum_loss * scale;
 }

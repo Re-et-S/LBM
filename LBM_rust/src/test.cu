@@ -60,7 +60,6 @@ void test_forward_pass() {
     model.initialize_weights();
     model.initialize_rope_frequencies(cfg.seq_length, cfg.head_dim, 10000.0f);
     
-    // Create some dummy input tokens
     int total_tokens = cfg.batch_size * cfg.seq_length;
     std::vector<uint32_t> h_tokens(total_tokens, 1); // all ones
     CudaBuffer<uint32_t> d_tokens(total_tokens);

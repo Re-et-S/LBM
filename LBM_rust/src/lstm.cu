@@ -58,7 +58,6 @@ __global__ void embedding_backward_kernel(
     }
 }
 
-// Fallback Bias Broadcast
 __global__ void fallback_bias_broadcast_kernel(
     int total_preds,
     int D_out,

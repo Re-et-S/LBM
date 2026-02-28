@@ -21,7 +21,6 @@ void fill_buffer(CudaBuffer<float>* buffer, float value) {
     cudaDeviceSynchronize();
 }
 
-// partially fill a buffer with value
 __global__ void partial_fill_kernel(float* ptr, float val, int offset, int count) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= count) return;
@@ -29,7 +28,6 @@ __global__ void partial_fill_kernel(float* ptr, float val, int offset, int count
     ptr[idx + offset] = val;
 }
 
-// special function to fill the bias buffer for lstm
 void fill_lstm_b(CudaBuffer<float>* buffer, int hidden_dim) {
     int threads = 256;
     int blocks = (hidden_dim + threads - 1) / threads;

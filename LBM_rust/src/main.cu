@@ -16,8 +16,8 @@ int main(int argc, char** argv) {
         // 1. Initialize Configuration
         LSTMConfig lstm_cfg;
         lstm_cfg.embedding_dim = 128;
-        lstm_cfg.hidden_dim = 256;
-        lstm_cfg.seq_length = 64;
+        lstm_cfg.hidden_dim = 128;
+        lstm_cfg.seq_length = 32;
         lstm_cfg.batch_size = 32;
         lstm_cfg.num_heads = 4;
         lstm_cfg.head_dim = 64;
@@ -45,10 +45,8 @@ int main(int argc, char** argv) {
         AdamOptimizer optimizer(opt_cfg);
         optimizer.register_model(model);
 
-        // Gradient Buffer
         CudaBuffer<float> grad_output(lstm_cfg.seq_length * lstm_cfg.batch_size * lstm_cfg.vocab_size);
 
-        // Buffers for input/target slices
         CudaBuffer<uint32_t> d_X(lstm_cfg.seq_length * lstm_cfg.batch_size);
         CudaBuffer<uint32_t> d_Y(lstm_cfg.seq_length * lstm_cfg.batch_size);
 
@@ -72,11 +70,9 @@ int main(int argc, char** argv) {
                 // Clear existing gradients from previous batch
                 model.clear_all_gradients();
 
-                // Copy batch to GPU
                 d_X.to_device(ptr_X, d_X.count);
                 d_Y.to_device(ptr_Y, d_Y.count);
 
-                // --- Forward Pass ---
                 model.forward(d_X);
 
                 // --- Loss and Gradient ---

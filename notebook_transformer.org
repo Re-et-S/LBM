@@ -42,3 +42,28 @@ The objective function is shifted from a custom regression loss to a standard Cr
 ** 3. Diagnostics and Inference
 - Added specific inference functionality inside the main training loop (or an evaluation function) that predicts the next token.
 - A raw probability distribution over the vocabulary is tracked to analyze the model's confidence and diversity when generating MIDI tokens.
+
+** 4. Running the Code
+
+To compile the C++/CUDA code for training and testing the model, use the provided ~CMakeLists.txt~.
+
+#+BEGIN_SRC sh :dir ./LBM_rust :results output
+mkdir -p build
+cd build
+cmake ..
+make
+#+END_SRC
+
+Before running the main training program, ensure you have processed the MIDI files with the Rust pipeline to generate ~tokens.bin~ and ~vocab.bin~ in the ~LBM_rust~ directory.
+
+To run the unit tests and verify the configuration, model initialization, and basic forward pass execution:
+
+#+BEGIN_SRC sh :dir ./LBM_rust :results output
+./build/lbm_test
+#+END_SRC
+
+To run the main training program:
+
+#+BEGIN_SRC sh :dir ./LBM_rust :results output
+./build/lbm_train
+#+END_SRC

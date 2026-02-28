@@ -1,4 +1,5 @@
 /target
+/LBM_rust/build
 /LBM_rust/target
 /LBM_rust/.ipynb_checkpoints
 *.bin

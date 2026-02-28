@@ -384,7 +384,6 @@ __global__ void fuse_h_kernel(
     h_out[idx] = val;
 }
 
-// inverse of fuse, breaks up the grad
 __global__ void slice_h_kernel(
     const float* h_fused_grad, 
     float* h_ret_grad,         
