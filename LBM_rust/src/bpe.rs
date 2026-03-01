@@ -558,3 +558,45 @@ pub fn save_tokens_to_bin(
     }
     Ok(())
 }
+
+pub fn load_vocab(path: &str) -> io::Result<(Vec<[u8; CHUNK_SIZE]>, Vec<(u32, u32, u32)>)> {
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+
+    let mut buf4 = [0u8; 4];
+    reader.read_exact(&mut buf4)?;
+    let base_vocab_size = u32::from_le_bytes(buf4) as usize;
+
+    reader.read_exact(&mut buf4)?;
+    let num_merges = u32::from_le_bytes(buf4) as usize;
+
+    let mut vocab = Vec::with_capacity(base_vocab_size);
+    for _ in 0..base_vocab_size {
+        let mut chunk = [0u8; CHUNK_SIZE];
+        reader.read_exact(&mut chunk)?;
+        vocab.push(chunk);
+    }
+
+    let mut merge_rules = Vec::with_capacity(num_merges);
+    for i in 0..num_merges {
+        let new_token_id = (base_vocab_size + i) as u32;
+        reader.read_exact(&mut buf4)?;
+        let left = u32::from_le_bytes(buf4);
+        reader.read_exact(&mut buf4)?;
+        let right = u32::from_le_bytes(buf4);
+        merge_rules.push((new_token_id, left, right));
+    }
+
+    Ok((vocab, merge_rules))
+}
+
+pub fn load_sequence(path: &str) -> io::Result<Vec<u32>> {
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+    let mut output = Vec::new();
+    let mut buf = [0u8; 4];
+    while let Ok(_) = reader.read_exact(&mut buf) {
+        output.push(u32::from_le_bytes(buf));
+    }
+    Ok(output)
+}

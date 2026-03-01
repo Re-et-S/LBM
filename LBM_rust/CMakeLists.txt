@@ -20,6 +20,8 @@ set(LBM_SOURCES
     src/transformer_ops.cu
     src/utils.cu
     src/lstm.cu
+    src/checkpoint.cu
+    src/generate.cu
     src/optimizer.cu
     src/loss.cu
 )

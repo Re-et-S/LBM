@@ -53,6 +53,7 @@ fn process_single_file<W: Write>(path: &Path, writer: &mut W) -> Result<usize, B
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Default mode: Process MIDI and encode
     let input_dir = "bach_midi_files";
     let output_bin = "dataset.bin";
     let output_index = "dataset_index.json";
