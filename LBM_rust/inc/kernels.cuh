@@ -1,5 +1,6 @@
 #pragma once
 #include <cuda_runtime.h>
+#include <cstdint>
 
 // Device helper functions
 __device__ inline float sigmoid(float x) {
@@ -28,6 +29,19 @@ __device__ inline float clip_grad_val(float x, float threshold = 5.0f) {
 }
 
 // Kernel declarations
+__global__ void embedding_forward_kernel(const uint32_t *tokens, // [T, N]
+                         const float *W_emb,     // [vocab_size, embedding_dim]
+                         float *output,          // [T, N, embedding_dim]
+                         int total_tokens, int embedding_dim, int vocab_size);
+
+__global__ void embedding_backward_kernel(const uint32_t *tokens,   // [T, N]
+                          const float *output_grad, // [T, N, embedding_dim]
+                          float *W_emb_grad, // [vocab_size, embedding_dim]
+                          int total_tokens, int embedding_dim, int vocab_size);
+
+__global__ void fallback_bias_broadcast_kernel(int total_preds, int D_out,
+                                               const float *b, float *out);
+
 __global__ void fill_kernel(float* __restrict__ data, float value, size_t n);
 
 __global__ void lstm_cell_kernel(

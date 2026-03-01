@@ -251,8 +251,7 @@ struct ProjectionHead {
     size_t total_steps = cfg.seq_length * cfg.batch_size;
 
     W_y = std::make_unique<CudaBuffer<float>>(cfg.hidden_dim * cfg.vocab_size);
-    W_y_grad =
-        std::make_unique<CudaBuffer<float>>(cfg.hidden_dim * cfg.vocab_size);
+    W_y_grad = std::make_unique<CudaBuffer<float>>(cfg.hidden_dim * cfg.vocab_size);
 
     b_y = std::make_unique<CudaBuffer<float>>(cfg.vocab_size);
     b_y_grad = std::make_unique<CudaBuffer<float>>(cfg.vocab_size);
@@ -274,8 +273,7 @@ public:
 
   std::unique_ptr<CudaBuffer<float>> W_emb; // [vocab_size, embedding_dim]
   std::unique_ptr<CudaBuffer<float>> W_emb_grad;
-  std::unique_ptr<CudaBuffer<float>>
-      embedded_input; // [seq_length, batch_size, embedding_dim]
+  std::unique_ptr<CudaBuffer<float>> embedded_input; // [seq_length, batch_size, embedding_dim]
   std::unique_ptr<CudaBuffer<float>> embedded_input_grad;
 
   cudaStream_t stream; // stream for running the LSTM forward/backward call
@@ -294,14 +292,10 @@ public:
 
     size_t total_steps = cfg.seq_length * cfg.batch_size;
 
-    W_emb =
-        std::make_unique<CudaBuffer<float>>(cfg.vocab_size * cfg.embedding_dim);
-    W_emb_grad =
-        std::make_unique<CudaBuffer<float>>(cfg.vocab_size * cfg.embedding_dim);
-    embedded_input =
-        std::make_unique<CudaBuffer<float>>(total_steps * cfg.embedding_dim);
-    embedded_input_grad =
-        std::make_unique<CudaBuffer<float>>(total_steps * cfg.embedding_dim);
+    W_emb = std::make_unique<CudaBuffer<float>>(cfg.vocab_size * cfg.embedding_dim);
+    W_emb_grad = std::make_unique<CudaBuffer<float>>(cfg.vocab_size * cfg.embedding_dim);
+    embedded_input = std::make_unique<CudaBuffer<float>>(total_steps * cfg.embedding_dim);
+    embedded_input_grad = std::make_unique<CudaBuffer<float>>(total_steps * cfg.embedding_dim);
 
     params.allocate(cfg);
     state.allocate(cfg);

@@ -1,4 +1,5 @@
 #include "kernels.cuh"
+#include <cstdint>
 #include <math.h>
 #include <cuda_runtime.h>
 
@@ -109,6 +110,53 @@ __inline__ __device__ float warpReduceMax(float val) {
 // =================================================================================
 // Kernels
 // =================================================================================
+
+// Embedding Forward Kernel
+__global__ void embedding_forward_kernel(const uint32_t *tokens, // [T, N]
+                         const float *W_emb,     // [vocab_size, embedding_dim]
+                         float *output,          // [T, N, embedding_dim]
+                         int total_tokens, int embedding_dim, int vocab_size) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= total_tokens * embedding_dim)
+    return;
+
+  int token_idx = idx / embedding_dim;
+  int feat_idx = idx % embedding_dim;
+
+  uint32_t token = tokens[token_idx];
+  if (token < vocab_size) {
+    output[idx] = W_emb[token * embedding_dim + feat_idx];
+  } else {
+    output[idx] = 0.0f;
+  }
+}
+
+// Embedding Backward Kernel
+__global__ void embedding_backward_kernel(const uint32_t *tokens,   // [T, N]
+                          const float *output_grad, // [T, N, embedding_dim]
+                          float *W_emb_grad, // [vocab_size, embedding_dim]
+                          int total_tokens, int embedding_dim, int vocab_size) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= total_tokens * embedding_dim)
+    return;
+
+  int token_idx = idx / embedding_dim;
+  int feat_idx = idx % embedding_dim;
+
+  uint32_t token = tokens[token_idx];
+  if (token < vocab_size) {
+    float grad = output_grad[idx];
+    atomicAdd(&W_emb_grad[token * embedding_dim + feat_idx], grad);
+  }
+}
+
+__global__ void fallback_bias_broadcast_kernel(int total_preds, int D_out,
+                                               const float *b, float *out) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < total_preds) {
+    out[idx] = b[idx % D_out];
+  }
+}
 
 __global__ void multi_channel_encode_kernel(const float* __restrict__ d_inputs,      // [Batch, Seq, Channels]
     const float* __restrict__ d_emb_weights, // [Channels, Num_Bins, Emb_Dim]
