@@ -9,6 +9,7 @@
 #include <thrust/functional.h>
 #include <thrust/device_ptr.h>
 #include <thrust/transform.h>
+#include <cuda/std/functional>
 
 void launch_adam_kernel(
     int size, float* w, const float* dw, float* m, float* v, 
@@ -109,9 +110,9 @@ public:
         add_parameter_to_last_group(model.head.b_y.get(),   model.head.b_y_grad.get());
     }
 
-    void step() {
+   float step() {
         t++;
-        clip_gradients_global(1.0f);
+        float grad_norm = clip_gradients_global(1.0f);
 
         for (auto& group : param_groups) {
             for (auto& p : group.params) {
@@ -130,15 +131,16 @@ public:
                 );
             }
         }
+        return grad_norm;
     }
 
-    void clip_gradients_global(float max_norm) {
+   float clip_gradients_global(float max_norm) {
         float total_sum_sq = 0.0f;
 
         for (const auto& group : param_groups) {
             for (const auto& p : group.params) {
                  thrust::device_ptr<float> ptr(p.dw->get());
-                 total_sum_sq += thrust::transform_reduce(ptr, ptr + p.size, SquareOp(), 0.0f, thrust::plus<float>());
+                 total_sum_sq += thrust::transform_reduce(ptr, ptr + p.size, SquareOp(), 0.0f, cuda::std::plus<float>());
             }
         }
         
@@ -155,5 +157,6 @@ public:
                 }
             }
         }
+        return global_norm;
     }
 };

@@ -32,6 +32,6 @@ struct TrainingConfig {
     int warmup = 50;            // Number of warmup steps before LR decay logic
 
     float patience = 3;         // Patience for LR scheduler
-    float decay_factor = 0.8f;  // LR decay factor
+    float decay_factor = 0.85f;  // LR decay factor
     float min_lr = 1e-6f;       // Minimum learning rate
 };

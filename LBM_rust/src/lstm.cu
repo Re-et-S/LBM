@@ -529,7 +529,10 @@ __global__ void softmax_distribution_kernel(
     __syncthreads();
     val = (tid < (blockDim.x / 32)) ? sdata[tid] : -1e20f;
     for (int offset = 16; offset > 0; offset /= 2) val = fmaxf(val, __shfl_down_sync(0xffffffff, val, offset));
-    float row_max = __shfl_sync(0xffffffff, val, 0);
+    if (tid == 0) sdata[0] = val;
+    __syncthreads();
+    float row_max = sdata[0];
+    __syncthreads();
 
     float sum_exp = 0.0f;
     for (int i = tid; i < vocab_size; i += blockDim.x) {
@@ -544,7 +547,10 @@ __global__ void softmax_distribution_kernel(
     __syncthreads();
     val = (tid < (blockDim.x / 32)) ? sdata[tid] : 0.0f;
     for (int offset = 16; offset > 0; offset /= 2) val += __shfl_down_sync(0xffffffff, val, offset);
-    float row_sum = __shfl_sync(0xffffffff, val, 0);
+    if (tid == 0) sdata[0] = val;
+    __syncthreads();
+    float row_sum = sdata[0];
+    __syncthreads();
 
     float inv_sum = 1.0f / (row_sum + 1e-6f);
     

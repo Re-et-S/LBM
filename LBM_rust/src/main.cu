@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
                 model.backward(d_X, grad_output);
 
                 // --- Optimization Step ---
-                optimizer.step();
+                float grad_norm = optimizer.step();
 
                 epoch_loss += loss;
                 batches_processed++;
@@ -96,7 +96,8 @@ int main(int argc, char** argv) {
                 if (batches_processed % train_cfg.log_interval == 0) {
                     std::cout << "Epoch [" << epoch + 1 << "/" << train_cfg.epochs << "], "
                               << "Step [" << batches_processed << "], "
-                              << "Loss: " << std::fixed << std::setprecision(4) << loss << std::endl;
+                              << "Loss: " << std::fixed << std::setprecision(4) << loss << ", "
+                              << "Grad Norm: " << grad_norm << std::endl;
                     
                     // Periodically print the top 5 probabilities from the vocabulary distribution
                     std::vector<float> h_probs;

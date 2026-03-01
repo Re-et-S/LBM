@@ -245,30 +245,30 @@ void run_backward_transformer_projections(
         CUBLAS_OP_N, CUBLAS_OP_T,
         embed_dim, hidden_dim, total_tokens,
         &alpha,
-        mha.Q_grad->get(), hidden_dim,
-        input_h.get(), embed_dim,
+        mha.Q_grad->get(), embed_dim,
+        input_h.get(), hidden_dim,
         &beta_overwrite,
-        mha.W_q_grad->get(), hidden_dim
+        mha.W_q_grad->get(), embed_dim
     );
 
     cublasSgemm(handle,
         CUBLAS_OP_N, CUBLAS_OP_T,
         embed_dim, hidden_dim, total_tokens,
         &alpha,
-        mha.K_grad->get(), hidden_dim,
-        input_h.get(), embed_dim,
+        mha.K_grad->get(), embed_dim,
+        input_h.get(), hidden_dim,
         &beta_overwrite,
-        mha.W_k_grad->get(), hidden_dim
+        mha.W_k_grad->get(), embed_dim
     );
 
     cublasSgemm(handle,
         CUBLAS_OP_N, CUBLAS_OP_T,
         embed_dim, hidden_dim, total_tokens,
         &alpha,
-        mha.V_grad->get(), hidden_dim,
-        input_h.get(), embed_dim,
+        mha.V_grad->get(), embed_dim,
+        input_h.get(), hidden_dim,
         &beta_overwrite,
-        mha.W_v_grad->get(), hidden_dim
+        mha.W_v_grad->get(), embed_dim
     );
 
     int m_h = hidden_dim;

@@ -2,6 +2,7 @@
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>
 #include <thrust/execution_policy.h>
+#include <cuda/std/functional>
 
 // CUDA Kernel to calculate Softmax, Cross-Entropy Loss, and Gradients
 __global__ void cross_entropy_kernel(
@@ -43,7 +44,10 @@ __global__ void cross_entropy_kernel(
     for (int offset = 16; offset > 0; offset /= 2) {
         val = fmaxf(val, __shfl_down_sync(0xffffffff, val, offset));
     }
-    float row_max = __shfl_sync(0xffffffff, val, 0);
+    if (tid == 0) sdata[0] = val;
+    __syncthreads();
+    float row_max = sdata[0];
+    __syncthreads();
 
     // 2. Compute Exp and Sum
     float sum_exp = 0.0f;
@@ -65,7 +69,10 @@ __global__ void cross_entropy_kernel(
     for (int offset = 16; offset > 0; offset /= 2) {
         val += __shfl_down_sync(0xffffffff, val, offset);
     }
-    float row_sum = __shfl_sync(0xffffffff, val, 0);
+    if (tid == 0) sdata[0] = val;
+    __syncthreads();
+    float row_sum = sdata[0];
+    __syncthreads();
 
     // 3. Normalize to get Softmax probabilities and compute gradients
     float inv_sum = 1.0f / (row_sum + 1e-6f);
@@ -127,7 +134,7 @@ float compute_cross_entropy_loss_and_grad(
         d_loss, 
         d_loss + total_tokens, 
         0.0f, 
-        thrust::plus<float>()
+        cuda::std::plus<float>()
     );
 
     return sum_loss * scale;
