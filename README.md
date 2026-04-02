@@ -16,6 +16,8 @@ cargo run --bin parse_midi_bpe
 cargo run --bin decode -- <sequence.bin> [vocab.bin]
 ```
 
+The jupyter notebook bpe_output_midi.ipynb can be used for converting a decoded sequence into a midi file
+
 The C/C++ CUDA portion uses standard CMake workflows. In the LBM_rust folder
 
 ``` sh
