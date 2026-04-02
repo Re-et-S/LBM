@@ -75,11 +75,8 @@ pub fn quantize_centroids(centroids: &mut Vec<f32>) {
 pub fn run_clustering_pipeline(binary_path: &str) -> io::Result<Vec<u8>> {
     println!("Loading raw binary from {}...", binary_path);
     
-    // 1. Load the raw binary data (Mutable because we will overwrite it later)
     let mut raw_data = load_all_data(binary_path)?;
 
-    // 2. Extract Durations for K-Means
-    // We create a temporary Vec<f32> just for the clustering algorithm
     println!("Extracting durations for analysis...");
     let durations: Vec<f32> = raw_data
         .chunks_exact(CHUNK_SIZE)
@@ -91,12 +88,10 @@ pub fn run_clustering_pipeline(binary_path: &str) -> io::Result<Vec<u8>> {
         })
         .collect();
 
-    // 2. Use 'const' for array sizes
     const N_CLUSTERS: usize = 16;
     const MAX_ITERATIONS: usize = 100;
     const TOLERANCE: f32 = 1e-4;
 
-    // 3. Initialization
     let start: f32 = 1.0 / 64.0;
     let end: f32 = 4.0;
     let base_ratio = end / start;
@@ -108,7 +103,6 @@ pub fn run_clustering_pipeline(binary_path: &str) -> io::Result<Vec<u8>> {
 
     println!("Initial centroids: {:.4?}", centroids);
 
-    // 4. The Main K-Means Loop
     for iteration in 0..MAX_ITERATIONS {
         
         let assignments: Vec<usize> = durations.par_iter()
@@ -127,17 +121,14 @@ pub fn run_clustering_pipeline(binary_path: &str) -> io::Result<Vec<u8>> {
             })
             .collect();
 
-        // --- STEP B: Update Centroids (Sequential) ---
         let mut new_centroids = [0.0f32; N_CLUSTERS];
         let mut counts = [0usize; N_CLUSTERS];
 
-        // This zip works correctly now because 'assignments' is in scope
         for (&duration, &cluster_idx) in durations.iter().zip(&assignments) {
             new_centroids[cluster_idx] += duration;
             counts[cluster_idx] += 1;
         }
 
-        // Normalize
         for i in 0..N_CLUSTERS {
             if counts[i] > 0 {
                 new_centroids[i] /= counts[i] as f32;
@@ -147,7 +138,7 @@ pub fn run_clustering_pipeline(binary_path: &str) -> io::Result<Vec<u8>> {
             }
         }
 
-        // --- STEP C: Check Convergence ---
+        // Convergence
         let mut shift: f32 = 0.0;
         for i in 0..N_CLUSTERS {
             shift += (centroids[i] - new_centroids[i]).abs();

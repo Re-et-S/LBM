@@ -213,18 +213,13 @@ impl MidiTrack {
 }
 
 // Helper to parse the specific event logic
-// 'first_data_byte': If we used running status, we already accidentally read the first data byte.
-// We pass it in here so the parser can use it instead of reading from the stream.
 fn parse_event<R: Read>(
     reader: &mut R, 
     delta_time: u32, 
     status: u8, 
     first_data_byte: Option<u8>
 ) -> Result<MidiEvent, MidiError> {
-        
-    // Actually, handling the "peeked" byte is cleaner if we just handle it inside the match branches.
-    // Let's define the channel and event type.
-    
+            
     let channel = status & 0x0F;
     let event_type = if status >= 0xF0 {
         // System / Meta events
@@ -232,7 +227,6 @@ fn parse_event<R: Read>(
             0xFF => {
                 // Meta Event
                 // If we are here, 'first_data_byte' is None because 0xFF is a status byte.
-                // But wait, the logic in 'parse_track' passes 'None' if status >= 0x80.
                 // So we read the meta type.
                 let mut meta_type_buf = [0u8; 1];
                 reader.read_exact(&mut meta_type_buf)?;

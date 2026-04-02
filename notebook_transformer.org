@@ -3,7 +3,6 @@
 ** 1. Overview
 This project adapts an existing C++/CUDA LSTM and Transformer hybrid model (originally designed for multivariate continuous financial time series, such as returns and volatilities) to act as an autoregressive language model for discrete MIDI tokens. 
 
-The original continuous streams (`hidden_dim_ret` and `hidden_dim_vol`) are unified into a single text-like generation pipeline:
 1. *Input*: Sequences of 32-bit unsigned integers (`u32`) loaded from `tokens.bin`.
 2. *Embedding*: A learnable lookup table mapping each token to an `embedding_dim` dense vector.
 3. *LSTM*: A single LSTM layer operating on the embedded vectors with hidden size `hidden_dim`. 

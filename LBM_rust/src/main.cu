@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     opt_cfg.learning_rate = 1e-3f;
 
     TrainingConfig train_cfg;
-    train_cfg.epochs = 1;
+    train_cfg.epochs = 100;
     train_cfg.log_interval = 50;
 
     // 2. Initialize DataLoader
@@ -129,10 +129,10 @@ int main(int argc, char **argv) {
           }
         }
 
-        if (batches_processed >= 1000) {
-          std::cout << "Reached 1000 steps. Early stopping." << std::endl;
-          break;
-        }
+        // if (batches_processed >= 1000) {
+        //   std::cout << "Reached 1000 steps. Early stopping." << std::endl;
+        //   break;
+        // }
       }
 
       loader.reset();

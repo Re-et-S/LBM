@@ -27,7 +27,7 @@ struct OptimizerConfig {
 };
 
 struct TrainingConfig {
-    int epochs = 500;          // Total number of training epochs
+    int epochs = 100;          // Total number of training epochs
     int log_interval = 10;     // Frequency of logging and checkpointing
     int warmup = 50;            // Number of warmup steps before LR decay logic
 
